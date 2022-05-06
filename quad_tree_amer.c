@@ -3,6 +3,7 @@
 #include <time.h>
 
 #include "./include/math_funcs.h"
+#include "./include/tree.h"
 //#include "./include/ibmxvals.h"
 
 // IBM parameters
@@ -136,9 +137,10 @@ double gen_y_val(const double* cdf, const double* y, const int n) {
 	return y[n-1];
 }
 
-void find_qs(const double x, const int node_j, const double mul_pt, double* q) {
-	const double d1 = x - node_j*mul_pt;
-	const double d2 = x - (node_j-1)*mul_pt;
+void find_qs(const struct Tree_Node* node, const int node_j, 
+						 const double mul_pt, double* q) {
+	const double d1 = node->x - node_j*mul_pt;
+	const double d2 = node->x - (node_j-1)*mul_pt;
 	if(-d1 < d2) {
 		const double b = d1/mul_pt;
 		const double bsq = pow(b, 2);
@@ -157,13 +159,22 @@ void find_qs(const double x, const int node_j, const double mul_pt, double* q) {
 	}
 }
 
-double gen_tree(const double* Y_bar, double** xlist, double** xlist2, 
-								double** qlist, double** qlist2, const int list_size) {
-	double* curr_x = *xlist2;
-	double* curr_q = *qlist2;
-	double* next_x = *xlist;
-	double* next_q = *qlist;
+double gen_tree(const double* Y_bar, struct Tree_Node* nodes,
+								const int list_size) {
 	static int size_mul = 1;
+	struct Tree tree;
+	struct Tree_Node* curr_node = nodes;
+	int nodes_used = 1;
+	
+	//Setup the tree
+	tree.pHead = nodes;
+	tree.pTops[0] = nodes;
+	tree.pTops[1] = nodes+1;
+	tree.pBottoms[0] = nodes;
+	tree.pBottoms[1] = nodes+4;
+	tree.n_nodes[0] = 1;
+	tree.n_nodes[1] = 4;
+	curr_node->x = X_0;
 
 	double sig = calc_sigma(Y_bar[0]);
 	double add_pt = (r-pow(sig, 2.f)/2.f)*dt;
@@ -173,88 +184,112 @@ double gen_tree(const double* Y_bar, double** xlist, double** xlist2,
 	//Calculate the successors of the first
 	int node_j = (int)ceil(X_0/mul_pt);
 
-	find_qs(X_0, node_j, mul_pt, q);
-
-	for(int i=0; i<4; i++) {
-		next_x[i] = (node_j-2.f+i)*mul_pt+add_pt;
-		next_q[i] = q[3-i];
-	}
+	find_qs(curr_node, node_j, mul_pt, q);
 	
-	int top = 4;
-	int j_upp = 4;
-	int j_downn = 0;
+	// Setup the node and set children's x value
+	struct Tree_Node* curr_child = tree.pTops[1];
+	for(int i=0; i<4; i++) {
+		curr_child->x = (node_j+1-i)*mul_pt+add_pt;
+		curr_node->q[i] = q[i];
+		curr_node->pNext[i] = curr_child;
+		curr_child++;
+	}
+	nodes_used += 4;
+	
+	int j_upp;
+	int j_downn;
 
 	for(int i=1; i<N; i++) {
+		// Initial calculations for time moment
 		sig = calc_sigma(Y_bar[i]);
 		add_pt = (r-pow(sig, 2.f)/2.f)*dt;
 		mul_pt = sig*sqrt(dt);
 
-		top = j_upp-j_downn; //j_upp is over the highest point by 1
-		j_upp = ceil(next_x[top-1]/mul_pt)+2; //use next_x for now
-		j_downn = ceil(next_x[0]/mul_pt)-2;
+		j_upp = ceil(tree.pTops[i]->x/mul_pt)+2; 
+		j_downn = ceil(tree.pBottoms[i]->x/mul_pt)-2;
 
-		// resize the array if it won't fit
-		if(j_upp-j_downn+1 > list_size*size_mul) {
-			printf("\nRESIZING...\n");
-			while(j_upp-j_downn+1 > list_size*size_mul)
-				size_mul++;
-			*xlist = realloc(*xlist, sizeof(double)*list_size*size_mul);
-			*qlist = realloc(*qlist, sizeof(double)*list_size*size_mul);
-			*xlist2 = realloc(*xlist2, sizeof(double)*list_size*size_mul);
-			*qlist2 = realloc(*qlist2, sizeof(double)*list_size*size_mul);
-			if(*xlist == 0 || *qlist == 0 || *xlist2 == 0 || *qlist2 == 0) {
-				printf("ERROR: memory reallocation failed");
-				exit(-1);
-			}
+		// Quit if tree won't fit to prevent seg fault
+		if(nodes_used+j_upp-j_downn > list_size*size_mul) {
+			printf("ERROR: Amount of memory too small");
+			exit(-1);
 		}
-		if(i % 2 == 0) {
-			curr_x = *xlist2;
-			curr_q = *qlist2;
-			next_x = *xlist;
-			next_q = *qlist;
+		// move the current node to the top node of of the time moment
+		curr_node = tree.pTops[i];
+		tree.pTops[i+1] = tree.pBottoms[i]+1;
+		curr_child = tree.pTops[i+1];
+		tree.n_nodes[i+1] = 4;
+
+		node_j = ceil(curr_node->x/mul_pt);
+		find_qs(curr_node, node_j, mul_pt, q);
+
+		for(int j=0; j<4; j++) {
+			curr_child->x = (node_j+1-j)*mul_pt+add_pt;
+			curr_node->q[j] = q[j];
+			curr_node->pNext[j] = curr_child;
+			curr_child++;
 		}
-		else {
-			curr_x = *xlist;
-			curr_q = *qlist;
-			next_x = *xlist2;
-			next_q = *qlist2;
-		} 
-		// Clear out the old vals
-		for(int j=0; j<j_upp-j_downn; j++) {
-			next_q[j] = 0.f;
-		}
-		// find the new values for x
-		for(int j=0; j<j_upp-j_downn; j++) {
-			next_x[j] = (j_downn + j)*mul_pt+add_pt;
-		}
+		nodes_used += 4;
 		
-		// find the new probabilities
-		for(int j=0; j<top; j++) {
-			if(curr_q[j] == 0.f) continue;
-			node_j = ceil(curr_x[j]/mul_pt);
-
-			find_qs(curr_x[j], node_j, mul_pt, q);
-
-			if(node_j <= j_downn+1) {
-				printf("Invalid node value\n");
+		
+		//handle each node in the time moment
+		int last_j;
+		while(curr_node != tree.pBottoms[i]) {
+			//next node here in order to have the operation performed on the bot node
+			curr_node++;
+			last_j = node_j;
+			node_j = ceil(curr_node->x/mul_pt);
+			find_qs(curr_node, node_j, mul_pt, q);
+			//Interlace values
+			int j_diff = last_j - node_j;
+			if(j_diff < 0) {
+				printf("\nInvalid node value, current j cannot be higher than the last!, %d, %d\n", last_j, node_j);
+				printf("%f, %f\n", (curr_node-1)->x, curr_node->x);
 				exit(-1);
 			}
 
-			next_q[node_j+1-j_downn] += curr_q[j]*q[0]; 
-			next_q[node_j-j_downn] += curr_q[j]*q[1];
-			next_q[node_j-1-j_downn] += curr_q[j]*q[2];
-			next_q[node_j-2-j_downn] += curr_q[j]*q[3];
+			// match up the same child nodes
+			j_diff = j_diff > 4 ? 4 : j_diff;
+			curr_child -= (4-j_diff);
+
+			for(int j=0; j<4; j++) {
+				//only need to calculate this if it isn't an overlapping node
+				if(3-j_diff < j)
+					curr_child->x = (node_j+1-j)*mul_pt+add_pt;
+				curr_node ->q[j] = q[j];
+				curr_node ->pNext[j] = curr_child;
+				curr_child++;
+			}
+			tree.n_nodes[i+1] += j_diff;
+			nodes_used += j_diff;
 		}
+		tree.pBottoms[i+1] = tree.pTops[i+1]+(tree.n_nodes[i+1]-1);
 	}
-	
-	// Use the last calculated values
-	curr_x = next_x;
-	curr_q = next_q;
-	double expected_val = 0;
-	for(int j=0; j<j_upp-j_downn; j++) {
-		expected_val += payoff_func(exp(curr_x[j]), E, r, T)*curr_q[j];
+	curr_node = tree.pTops[100];
+	while(curr_node != tree.pBottoms[100]){
+		curr_node->v = payoff_func(exp(curr_node->x), E, r, T);
+		curr_node++;
 	}
-	return expected_val;
+	//bottom node
+	curr_node->v = payoff_func(exp(curr_node->x), E, r, T);
+	for(int i=99; i>0; i--) {
+		curr_node = tree.pTops[i];
+		while(curr_node != tree.pBottoms[i]){
+			curr_node->v = 0.f; // initialize data
+			for(int j=0; j<4; j++){
+				curr_node->v += curr_node->pNext[j]->v*curr_node->q[j];
+			} 
+			curr_node++;
+		}
+		//bottom node
+		curr_node->v = 0.f; // initialize data
+		for(int j=0; j<4; j++)
+			curr_node->v += curr_node->pNext[j]->v*curr_node->q[j];
+	}
+	curr_node = tree.pTops[0];
+	curr_node->v = 0.f; // initialize data
+	for(int j=0; j<4; j++)
+		curr_node->v += curr_node->pNext[j]->v*curr_node->q[j];
+	return curr_node->v;
 }
 
 int main() {
@@ -338,17 +373,14 @@ int main() {
 	printf("Generation time = %f\n", (double)(end_prob-start_prob)/CLOCKS_PER_SEC);
 	
 	// Generate the tree
-	// allocate 10,000 doubles initially (80kb)
+	// allocate 1M 80byte objects initially (80MB)
 	clock_t start_mc, end_mc;
 	start_mc = clock();
-	const int list_size = 10000;
-	
-	double* xlist = malloc(sizeof(double)*list_size);
-	double* qlist = malloc(sizeof(double)*list_size);
-	double* xlist2 = malloc(sizeof(double)*list_size);
-	double* qlist2 = malloc(sizeof(double)*list_size);
+	const int num_nodes = 20000;
 
-	if(xlist == 0 || qlist == 0 || xlist2 == 0 || qlist2 == 0) {
+	struct Tree_Node* nodes = malloc(sizeof(struct Tree_Node)*num_nodes);
+
+	if(nodes == 0) {
 		printf("ERROR: memory allocation failed");
 		exit(-1);
 	}
@@ -377,7 +409,7 @@ int main() {
 		for(int numer = 0; numer<7; numer++) {
 			//p = (16.f+numer)/192.f;
 			E = evals[numer];
-			expected_val[numer] += gen_tree(Y_bar, &xlist, &xlist2, &qlist, &qlist2, list_size);
+			expected_val[numer] += gen_tree(Y_bar, nodes, num_nodes);
 		}
 	}
 	end_mc = clock();
@@ -386,8 +418,5 @@ int main() {
 		printf("E=%f, Expected Value: %f\n", evals[i], expected_val[i]/(double)nruns);
 	printf("MC runtime: %f\n", (double)(end_mc-start_mc)/CLOCKS_PER_SEC);
 
-	free(xlist);
-	free(qlist);
-	free(xlist2);
-	free(qlist2);
+	free(nodes);
 }

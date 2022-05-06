@@ -3,9 +3,72 @@
 #include <time.h>
 
 #include "./include/math_funcs.h"
-#include "./include/sp500vals.h"
-//double xvals[] = {20.f, 20.f, 20.f, 20.f, 20.f};
-//const int x_len = 2;
+//#include "./include/sp500vals.h"
+double xvals[] = {
+	1147.60,
+	1143.90,
+	1141.50,
+	1155.40,
+	1144.00,
+	1128.50,
+	1134.10,
+	1131.10,
+	1135.30,
+	1136.00,
+	1126.50,
+	1128.60,
+	1142.80,
+	1139.80,
+	1145.50,
+	1157.80,
+	1152.10,
+	1145.80,
+	1157.00,
+	1151.80,
+	1147.10,
+	1144.10,
+	1141.00,
+	1139.10,
+	1143.70,
+	1144.90,
+	1144.90,
+	1156.00,
+	1149.10,
+	1151.00,
+	1154.90,
+	1156.90,
+	1147.20,
+	1140.60,
+	1123.90,
+	1106.80,
+	1120.60,
+	1104.50,
+	1110.70,
+	1123.80,
+	1122.30,
+	1109.80,
+	1095.40,
+	1094.00,
+	1091.30,
+	1109.20,
+	1108.10,
+	1122.50,
+	1127.00,
+	1126.20,
+	1132.20,
+	1141.80,
+	1150.60,
+	1148.20,
+	1140.50,
+	1139.30,
+	1145.20,
+	1129.40,
+	1128.20,
+	1128.80,
+	1134.60,
+	1135.80,
+	1118.20,
+	1124.10};
 // S&P500 parameters
 const double alpha = 50.f;
 //const double nu = -4.38;
@@ -19,12 +82,14 @@ const int n = 1000;
 const double T = 29.f/252.f;
 const double r = 0.01;
 const int N = 100;
-const double E = 1140.f;
+const double evals[] = {700.f, 1005.f, 1100.f, 1135.f, 1140.f, 1175.f, 1225.f};
+double E = 700.f;
 double p = 0.135;
 const double dt = T/(double)N;
 const double X_0 = log(1139.93);
 
-const int x_len = 1332;
+//const int x_len = 1332;
+const int x_len = 64;
 
 double calc_phi(const double x) {
 	if(x > -1.f && x < 1.f)
@@ -287,7 +352,7 @@ int main() {
 		printf("ERROR: memory allocation failed");
 		exit(-1);
 	}
-	double expected_val[17];
+	double expected_val[7];
 	double Y_bar[N];
 	int nruns = 100;
 	for(int i=0; i<nruns; i++) {
@@ -310,15 +375,16 @@ int main() {
 			}
 		}
 		printf("\rRun %d/%d", i+1, nruns);
-		for(int numer = 0; numer<17; numer++) {
-			p = (16.f+numer)/192.f;
+		for(int numer = 0; numer<7; numer++) {
+			//p = (16.f+numer)/192.f;
+			E = evals[numer];
 			expected_val[numer] += gen_tree(Y_bar, &xlist, &xlist2, &qlist, &qlist2, list_size);
 		}
 	}
 	end_mc = clock();
 	printf("\n");
-	for(int i = 0; i<17; i++)
-		printf("Expected Value: %f\n", expected_val[i]/(double)nruns);
+	for(int i = 0; i<7; i++)
+		printf("E=%f, Expected Value: %f\n", evals[i], expected_val[i]/(double)nruns);
 	printf("MC runtime: %f\n", (double)(end_mc-start_mc)/CLOCKS_PER_SEC);
 
 	free(xlist);

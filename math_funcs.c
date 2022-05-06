@@ -25,11 +25,7 @@ double gen_norm_dist_rn(const double mean, const double sd) {
 }
 
 double gen_unif_dist_rn(const double a, const double b) {
-    double u1;
-    do
-    {
-        u1 = rand()/((double)RAND_MAX);
-    }while(u1 < DBL_EPSILON);
+    double u1 = rand()/((double)RAND_MAX);
 		return (b-a)*u1+a;
 }
 

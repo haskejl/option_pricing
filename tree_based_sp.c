@@ -200,14 +200,14 @@ int main() {
 	printf("Debug Enabled\n");
 	#endif
 	const double S0 = 1139.93;
-	const double E[] = {700.f, 850.f, 1135.f, 1140.f, 1225.f}; 
+	const double E[] = {700.f, 1005.f, 1100.f, 1135.f, 1140.f, 1175.f, 1225.f}; 
 	const int n[] = {25, 35, 50, 71};
 	const int mz[] = {125, 250, 500, 1000};
 	const int mv[] = {6, 12, 24, 48};
 
-	double results[5][4];
-	double times[5][4];
-	for(int i=0; i<5; i++) {
+	double results[7][4];
+	double times[7][4];
+	for(int i=0; i<7; i++) {
 		for(int j=0; j<4; j++) {
 			clock_t start_t, end_t;
 			start_t = clock();
@@ -218,17 +218,17 @@ int main() {
 	}
 	printf("CALL OPTION\n");
 	printf("mz\tmv\tn\t");
-	for(int i=0; i<5; i++) {
-		printf("%6.1f\t", E[i]);
+	for(int i=0; i<7; i++) {
+		printf("%6.4f\t", E[i]);
 	}
 	printf("avg time\n");
 	for(int i=0; i<4; i++) {
-		double avg_time = 0;
+		double tot_time = 0;
 		printf("%d\t%d\t%d\t", mz[i], mv[i], n[i]);
-		for(int j=0; j<5; j++) {
-			avg_time += times[j][i];
+		for(int j=0; j<7; j++) {
+			tot_time += times[j][i];
 			printf("%6.4f\t", results[j][i]);
 		}
-		printf("%6.4f\n", avg_time/5.f);
+		printf("%6.4f\n", tot_time);
 	}
 }

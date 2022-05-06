@@ -52,7 +52,7 @@ void calc_cdf(double* cdf, const double* X, const double xn, const int n) {
 }
 
 double calc_sigma(const double x) {
-	return log(1/sqrt(x));
+	return log(1.f/sqrt(x));
 }
 
 double payoff_func(const double S, const double E, const double r, const double T) {

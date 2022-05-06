@@ -184,12 +184,12 @@ double european_16(const double S_0, const double E,
 											z1, z_t[t+1][z1_i], z_t[t+1][z1_i+1],
 											St[t+1][v1_i][z1_i], St[t+1][v1_i+1][z1_i], 
 											St[t+1][v1_i][z1_i+1], St[t+1][v1_i+1][z1_i+1]);
-				St[t][i][j] = exp(-r*dt)*0.25*((1.f+rho)*(nn+pp) + (1.f-rho)*(pn+np));
+				St[t][i][j] = 0.25*((1.f+rho)*(nn+pp) + (1.f-rho)*(pn+np));
 			  const double z_nn = z0*St[t+1][v0_i][z0_i]/nn;
 			 	const double z_np = z1*St[t+1][v0_i][z1_i]/np;
 			  const double z_pn = z0*St[t+1][v1_i][z0_i]/pn;
 			  const double z_pp = z1*St[t+1][v1_i][z1_i]/pp;
-				St[t][i][j] = max(St[t][i][j], max(E-exp(0.5*(z1+z0)), 0.f));
+				St[t][i][j] = exp(-r*dt)*max(St[t][i][j], max(E-exp(0.5*(z1+z0)), 0.f));
 			}
 		}
 	}
