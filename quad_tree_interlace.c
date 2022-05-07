@@ -176,22 +176,23 @@ double gen_tree(const double* Y_bar, double** xlist, double** xlist2,
 	find_qs(X_0, node_j, mul_pt, q);
 
 	for(int i=0; i<4; i++) {
-		next_x[i] = (node_j-2.f+i)*mul_pt+add_pt;
-		next_q[i] = q[3-i];
+		next_x[i] = (node_j+1.f-i)*mul_pt+add_pt;
+		next_q[i] = q[i];
 	}
 	
-	int top = 4;
-	int j_upp = 4;
-	int j_downn = 0;
+	int top;
+	int j_upp;
+	int j_downn;
+	int nodes_used = 4;
 
 	for(int i=1; i<N; i++) {
 		sig = calc_sigma(Y_bar[i]);
 		add_pt = (r-pow(sig, 2.f)/2.f)*dt;
 		mul_pt = sig*sqrt(dt);
 
-		top = j_upp-j_downn; //j_upp is over the highest point by 1
-		j_upp = ceil(next_x[top-1]/mul_pt)+2; //use next_x for now
-		j_downn = ceil(next_x[0]/mul_pt)-2;
+		top = nodes_used; //nodes_used is over the highest point by 1
+		j_upp = ceil(next_x[0]/mul_pt)+2; //use next_x for now
+		j_downn = ceil(next_x[top-1]/mul_pt)-2;
 
 		// resize the array if it won't fit
 		if(j_upp-j_downn+1 > list_size*size_mul) {
@@ -220,29 +221,39 @@ double gen_tree(const double* Y_bar, double** xlist, double** xlist2,
 			next_q = *qlist2;
 		} 
 
-		// find the new values for x
-		for(int j=0; j<j_upp-j_downn; j++) {
-			//reset values of q for this time step
-			next_q[j] = 0.f;
-			next_x[j] = (j_downn + j)*mul_pt+add_pt;
-		}
+		nodes_used = 4;
+		node_j = (int)ceil(curr_x[0]/mul_pt);
+		next_x[0] = (node_j+1.f)*mul_pt+add_pt;
+		next_x[1] = node_j*mul_pt+add_pt;
+		next_x[2] = (node_j-1.f)*mul_pt+add_pt;
+		next_x[3] = (node_j-2.f)*mul_pt+add_pt;
+
+		find_qs(curr_x[0], node_j, mul_pt, q);
+		next_q[0] = curr_q[0]*q[0];
+		next_q[1] = curr_q[0]*q[1];
+		next_q[2] = curr_q[0]*q[2];
+		next_q[3] = curr_q[0]*q[3];
 		
 		// find the new probabilities
-		for(int j=0; j<top; j++) {
-			if(curr_q[j] == 0.f) continue;
-			node_j = ceil(curr_x[j]/mul_pt);
+		for(int j=1; j<top; j++) {
+			int last_j = node_j;	
+			node_j = (int)ceil(curr_x[j]/mul_pt);
+			int j_diff = last_j-node_j;
+			j_diff = j_diff > 4 ? 4 : j_diff;
+			int pos = nodes_used-(4-j_diff);
 
 			find_qs(curr_x[j], node_j, mul_pt, q);
 
-			if(node_j <= j_downn+1) {
-				printf("Invalid node value\n");
-				exit(-1);
+			for(int k=0; k<4; k++) {
+				if(3-j_diff < k) {
+					next_x[pos] = (node_j+1.f-k)*mul_pt+add_pt;
+					next_q[pos] = curr_q[j]*q[k];
+				}
+				else
+					next_q[pos] += curr_q[j]*q[k];
+				pos++;
 			}
-
-			next_q[node_j+1-j_downn] += curr_q[j]*q[0]; 
-			next_q[node_j-j_downn] += curr_q[j]*q[1];
-			next_q[node_j-1-j_downn] += curr_q[j]*q[2];
-			next_q[node_j-2-j_downn] += curr_q[j]*q[3];
+			nodes_used += j_diff;
 		}
 	}
 	
@@ -250,7 +261,7 @@ double gen_tree(const double* Y_bar, double** xlist, double** xlist2,
 	curr_x = next_x;
 	curr_q = next_q;
 	double expected_val = 0;
-	for(int j=0; j<j_upp-j_downn; j++) {
+	for(int j=0; j<nodes_used; j++) {
 		expected_val += payoff_func(exp(curr_x[j]), E, r, T)*curr_q[j];
 	}
 	return expected_val;
@@ -337,10 +348,10 @@ int main() {
 	printf("Generation time = %f\n", (double)(end_prob-start_prob)/CLOCKS_PER_SEC);
 	
 	// Generate the tree
-	// allocate 10,000 doubles initially (80kb)
+	// allocate 1,000 doubles initially (8kb)
 	clock_t start_mc, end_mc;
 	start_mc = clock();
-	const int list_size = 10000;
+	const int list_size = 1000;
 	
 	double* xlist = malloc(sizeof(double)*list_size);
 	double* qlist = malloc(sizeof(double)*list_size);
