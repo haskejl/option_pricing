@@ -13,10 +13,10 @@ const double mu = 0.04588;
 
 const int M = 300;
 const double h = 1.f/252.f;
-const int n = 1000;
+const int n = 100;
 const double T = 42.f/252.f;
 const double r = 0.0343;
-const int N = 100;
+const int N = 1000;
 const double evals[] = {60.f, 70.f, 75.f, 80.f, 85.f, 90.f, 95.f};
 double E = 95.f;
 double p = 0.135;
@@ -352,7 +352,7 @@ int main() {
 	clock_t start_mc, end_mc;
 	start_mc = clock();
 	const int list_size = 1000;
-	
+
 	double* xlist = malloc(sizeof(double)*list_size);
 	double* qlist = malloc(sizeof(double)*list_size);
 	double* xlist2 = malloc(sizeof(double)*list_size);

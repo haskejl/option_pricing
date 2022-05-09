@@ -351,7 +351,7 @@ int main() {
 		printf("ERROR: memory allocation failed");
 		exit(-1);
 	}
-	double expected_val[7];
+	double expected_val[17];
 	double Y_bar[N];
 	int nruns = 100;
 	for(int i=0; i<nruns; i++) {

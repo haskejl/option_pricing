@@ -17,6 +17,7 @@ const double h = 1.f/252.f;
 const int n = 1000;
 const double T = 42.f/252.f;
 const double r = 0.0343;
+// NOTE: when changing this value, the sizes of the arrays in tree.h must also be changed
 const int N = 100;
 const double evals[] = {60.f, 70.f, 75.f, 80.f, 85.f, 90.f, 95.f};
 double E = 95.f;
@@ -210,7 +211,7 @@ double gen_tree(const double* Y_bar, struct Tree_Node* nodes,
 
 		// Quit if tree won't fit to prevent seg fault
 		if(nodes_used+j_upp-j_downn > list_size*size_mul) {
-			printf("ERROR: Amount of memory too small");
+			printf("ERROR: Amount of memory too small\n");
 			exit(-1);
 		}
 		// move the current node to the top node of of the time moment
@@ -264,14 +265,14 @@ double gen_tree(const double* Y_bar, struct Tree_Node* nodes,
 		}
 		tree.pBottoms[i+1] = tree.pTops[i+1]+(tree.n_nodes[i+1]-1);
 	}
-	curr_node = tree.pTops[100];
-	while(curr_node != tree.pBottoms[100]){
+	curr_node = tree.pTops[N];
+	while(curr_node != tree.pBottoms[N]){
 		curr_node->v = payoff_func(exp(curr_node->x), E, r, T);
 		curr_node++;
 	}
 	//bottom node
 	curr_node->v = payoff_func(exp(curr_node->x), E, r, T);
-	for(int i=99; i>0; i--) {
+	for(int i=N-1; i>0; i--) {
 		curr_node = tree.pTops[i];
 		while(curr_node != tree.pBottoms[i]){
 			curr_node->v = 0.f; // initialize data
@@ -376,6 +377,7 @@ int main() {
 	// allocate 1M 80byte objects initially (80MB)
 	clock_t start_mc, end_mc;
 	start_mc = clock();
+	// 20000 is enough to run this with N=100
 	const int num_nodes = 20000;
 
 	struct Tree_Node* nodes = malloc(sizeof(struct Tree_Node)*num_nodes);
