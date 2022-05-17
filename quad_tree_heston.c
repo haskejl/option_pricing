@@ -21,7 +21,6 @@ double p = 0.135;
 const double dt = T/(double)N;
 const double X_0 = log(10.f);
 
-//const int x_len = 1329;
 const int x_len = 42;
 double xvals[] = {10.f, 10.10476689, 10.00654793, 10.01964379,  9.92797276,
         9.9528549, 10.10214772, 10.09690938,  9.89392352, 10.06286014,

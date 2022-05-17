@@ -3,20 +3,19 @@
 #include <time.h>
 
 #include "./include/math_funcs.h"
-//#include "./include/ibmxvals.h"
 
 // IBM parameters
 const double alpha = 11.85566;
-const double nu = log(0.234);//0.9345938;
-const double psi = 1.f;//4.13415;
+const double nu = 0.9345938;
+const double psi = 4.13415;
 const double mu = 0.04588;
 
 const int M = 300;
 const double h = 1.f/252.f;
-const int n = 100;
+const int n = 1000;
 const double T = 42.f/252.f;
 const double r = 0.0343;
-const int N = 1000;
+const int N = 100;
 const double evals[] = {60.f, 70.f, 75.f, 80.f, 85.f, 90.f, 95.f};
 double E = 95.f;
 double p = 0.135;
@@ -89,15 +88,10 @@ double xvals[] = {
     82.38,
     81.81};
 const int x_len = 64;
-//const int x_len = 1329;
-//const int x_len = 42;
-/*double xvals[] = {76.36,77.16,76.41,76.51,75.81,76.0,77.14,77.1,75.55,76.84,77.35,75.79,75.0,75.04,74.8,
-				74.93,74.77,75.05,74.89,76.3,77.05,76.39,76.55,76.41,77.23,75.41,74.01,73.88,75.3,74.73,
-				74.2,74.67,74.79,75.81,77.38,79.3,78.96,80.04,81.45,82.42,82.38,81.81};*/
 
 double calc_phi(const double x) {
-	if(x > -1.f && x < 1.f)
-		return 1-fabs(x);
+	if(x > -0.1 && x < 0.1)
+		return 10.f*(1-fabs(x*10.f));
 	else
 		return 0.f;
 }
@@ -351,7 +345,7 @@ int main() {
 	// allocate 1,000 doubles initially (8kb)
 	clock_t start_mc, end_mc;
 	start_mc = clock();
-	const int list_size = 1000;
+	const int list_size = 35000;
 
 	double* xlist = malloc(sizeof(double)*list_size);
 	double* qlist = malloc(sizeof(double)*list_size);
@@ -365,18 +359,20 @@ int main() {
 	double expected_val[7];
 	double Y_bar[N];
 	int nruns = 100;
+	int n_st = 0;
+	while(cdf[n_st] == 0) {
+		n_st++;
+		if(n_st == n) {
+			printf("Problem exists with generating probability distribution");
+			exit(-1);
+		}
+	}
+
 	for(int i=0; i<nruns; i++) {
 		// Generate the values of Y_bar before making the tree
 		for(int j=0; j<N; j++) {
 			double rn = gen_unif_dist_rn(0.f, 1.f);
-			for(int k=0; k<n; k++) {
-				while(cdf[j] == 0)	{
-					k++;
-					if(k == n) {
-						printf("Problem exists with generating probability distribution");
-						exit(-1);
-					}
-				}
+			for(int k=n_st; k<n; k++) {
 				if(rn <= cdf[k]) {
 					Y_bar[j] = y_curr[k];
 					break;
@@ -385,7 +381,6 @@ int main() {
 		}
 		printf("\rRun %d/%d", i+1, nruns);
 		for(int numer = 0; numer<7; numer++) {
-			//p = (16.f+numer)/192.f;
 			E = evals[numer];
 			expected_val[numer] += gen_tree(Y_bar, &xlist, &xlist2, &qlist, &qlist2, list_size);
 		}

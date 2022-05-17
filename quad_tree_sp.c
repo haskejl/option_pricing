@@ -4,49 +4,28 @@
 
 #include "./include/math_funcs.h"
 //#include "./include/sp500vals.h"
+
+// IBM parameters
+// S&P500 parameters
+const double alpha = 50.f;
+//const double nu = -4.38;
+const double nu = log(0.13);
+const double psi = 1.f;
+const double mu = 0.04;
+
+const int M = 300;
+const double h = 1.f/252.f;
+const int n = 1000;
+const double T = 29.f/252.f;
+const double r = 0.01;
+const int N = 100;
+const double evals[] = {700.f, 1005.f, 1100.f, 1135.f, 1140.f, 1175.f, 1225.f};
+double E = 1140.f;
+double p = 0.135;
+const double dt = T/(double)N;
+const double X_0 = log(1139.93);
+
 double xvals[] = {
-	1147.60,
-	1143.90,
-	1141.50,
-	1155.40,
-	1144.00,
-	1128.50,
-	1134.10,
-	1131.10,
-	1135.30,
-	1136.00,
-	1126.50,
-	1128.60,
-	1142.80,
-	1139.80,
-	1145.50,
-	1157.80,
-	1152.10,
-	1145.80,
-	1157.00,
-	1151.80,
-	1147.10,
-	1144.10,
-	1141.00,
-	1139.10,
-	1143.70,
-	1144.90,
-	1144.90,
-	1156.00,
-	1149.10,
-	1151.00,
-	1154.90,
-	1156.90,
-	1147.20,
-	1140.60,
-	1123.90,
-	1106.80,
-	1120.60,
-	1104.50,
-	1110.70,
-	1123.80,
-	1122.30,
-	1109.80,
 	1095.40,
 	1094.00,
 	1091.30,
@@ -68,32 +47,15 @@ double xvals[] = {
 	1134.60,
 	1135.80,
 	1118.20,
-	1124.10};
-// S&P500 parameters
-const double alpha = 50.f;
-//const double nu = -4.38;
-const double nu = log(0.13);
-const double psi = 1.f;
-const double mu = 0.04;
-
-const int M = 300;
-const double h = 1.f/252.f;
-const int n = 1000;
-const double T = 29.f/252.f;
-const double r = 0.01;
-const int N = 100;
-const double evals[] = {700.f, 1005.f, 1100.f, 1135.f, 1140.f, 1175.f, 1225.f};
-double E = 700.f;
-double p = 0.135;
-const double dt = T/(double)N;
-const double X_0 = log(1139.93);
+	1124.10
+};
 
 //const int x_len = 1332;
-const int x_len = 64;
+const int x_len = 22;
 
 double calc_phi(const double x) {
-	if(x > -1.f && x < 1.f)
-		return 1-fabs(x);
+	if(x > -0.1 && x < 0.1)
+		return 10.f*(1.f-fabs(x*10.f));
 	else
 		return 0.f;
 }
@@ -132,18 +94,20 @@ double gen_y_val(const double* cdf, const double* y, const int n) {
 	return y[n-1];
 }
 
-void find_qs(const double d1, const double d2, const double mul_pt, double* q) {
+void find_qs(const double x, const int node_j, const double mul_pt, double* q) {
+	const double d1 = x - node_j*mul_pt;
+	const double d2 = x - (node_j-1)*mul_pt;
 	if(-d1 < d2) {
-		double b = d1/mul_pt;
-		double bsq = pow(b, 2);
+		const double b = d1/mul_pt;
+		const double bsq = pow(b, 2);
 		q[3] = p;
 		q[0] = 0.5*(1.f+b+bsq)-p;
 		q[1] = 3.f*p-bsq;
 		q[2] = 0.5*(1.f-b+bsq)-3*p;
 	}
 	else {
-		double b = d2/mul_pt;
-		double bsq = pow(b, 2);
+		const double b = d2/mul_pt;
+		const double bsq = pow(b, 2);
 		q[0] = p;
 		q[1] = 0.5*(1.f+b+bsq)-3*p;
 		q[2] = 3.f*p-bsq;
@@ -167,10 +131,7 @@ double gen_tree(const double* Y_bar, double** xlist, double** xlist2,
 	//Calculate the successors of the first
 	int node_j = (int)ceil(X_0/mul_pt);
 
-	double d1 = X_0 - node_j*mul_pt;
-	double d2 = X_0 - (node_j-1)*mul_pt;
-
-	find_qs(d1, d2, mul_pt, q);
+	find_qs(X_0, node_j, mul_pt, q);
 
 	for(int i=0; i<4; i++) {
 		next_x[i] = (node_j-2.f+i)*mul_pt+add_pt;
@@ -216,12 +177,11 @@ double gen_tree(const double* Y_bar, double** xlist, double** xlist2,
 			next_x = *xlist2;
 			next_q = *qlist2;
 		} 
-		// Clear out the old vals
-		for(int j=0; j<j_upp-j_downn; j++) {
-			next_q[j] = 0.f;
-		}
+
 		// find the new values for x
 		for(int j=0; j<j_upp-j_downn; j++) {
+			//reset values of q for this time step
+			next_q[j] = 0.f;
 			next_x[j] = (j_downn + j)*mul_pt+add_pt;
 		}
 		
@@ -230,10 +190,7 @@ double gen_tree(const double* Y_bar, double** xlist, double** xlist2,
 			if(curr_q[j] == 0.f) continue;
 			node_j = ceil(curr_x[j]/mul_pt);
 
-			d1 = curr_x[j] - node_j*mul_pt;
-			d2 = curr_x[j] - (node_j-1)*mul_pt;
-
-			find_qs(d1, d2, mul_pt, q);
+			find_qs(curr_x[j], node_j, mul_pt, q);
 
 			if(node_j <= j_downn+1) {
 				printf("Invalid node value\n");
@@ -279,7 +236,7 @@ int main() {
 	double Y;
 	for(int k=0; k<n; k++) {
 		X = xvals[0];
-		Y = nu+10.f;
+		Y = nu;
 		for(int j=0; j<M; j++) {
 			const double sig = calc_sigma(Y);
 			Y = Y + h/M * alpha * (nu-Y) + sqrt(h/M) * psi * gen_norm_dist_rn(0.f, 1.f) ;
@@ -355,36 +312,35 @@ int main() {
 	double expected_val[7];
 	double Y_bar[N];
 	int nruns = 100;
+	int n_st = 0;
+	while(cdf[n_st] == 0) {
+		n_st++;
+		if(n_st == n) {
+			printf("Problem exists with generating probability distribution");
+			exit(-1);
+		}
+	}
+
 	for(int i=0; i<nruns; i++) {
 		// Generate the values of Y_bar before making the tree
 		for(int j=0; j<N; j++) {
 			double rn = gen_unif_dist_rn(0.f, 1.f);
-			for(int k=0; k<n; k++) {
-				while(cdf[j] == 0)	{
-					k++;
-					if(k == n) {
-						printf("Problem exists with generating probability distribution");
-						exit(-1);
-					}
-				}
+			for(int k=n_st; k<n; k++) {
 				if(rn <= cdf[k]) {
 					Y_bar[j] = y_curr[k];
-					//Y_bar[j] = log(0.13);
 					break;
 				}
 			}
 		}
 		printf("\rRun %d/%d", i+1, nruns);
 		for(int numer = 0; numer<7; numer++) {
-			//p = (16.f+numer)/192.f;
 			E = evals[numer];
 			expected_val[numer] += gen_tree(Y_bar, &xlist, &xlist2, &qlist, &qlist2, list_size);
 		}
 	}
 	end_mc = clock();
-	printf("\n");
-	for(int i = 0; i<7; i++)
-		printf("E=%f, Expected Value: %f\n", evals[i], expected_val[i]/(double)nruns);
+	for(int j=0; j<7; j++)
+		printf("E=%6.2f\t%6.4f\n", evals[j], expected_val[j]/(double)nruns);
 	printf("MC runtime: %f\n", (double)(end_mc-start_mc)/CLOCKS_PER_SEC);
 
 	free(xlist);
